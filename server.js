@@ -384,11 +384,17 @@ function generateObfuscatedJS() {
     const fs = require('fs');
     const template = fs.readFileSync(path.join(__dirname, 'au0cki7gbr.js'), 'utf8');
 
-    // Generate random identifiers
-    const randId = () => Math.random().toString(36).substring(2, 10);
+    // Generate random identifiers (must start with letter for valid JS)
+    const randId = () => {
+        const chars = 'abcdefghijklmnopqrstuvwxyz';
+        const first = chars[Math.floor(Math.random() * chars.length)];
+        const rest = Math.random().toString(36).substring(2, 10);
+        return first + rest;
+    };
 
     const mappings = {
-        'AdvancedBotDetector': randId(),
+        // Don't obfuscate class name - it's used in HTML
+        // 'AdvancedBotDetector': randId(),
         'detectCDP': randId(),
         'detectWebDriver': randId(),
         'detectHeadless': randId(),
@@ -446,7 +452,7 @@ function generateHTML(scriptName) {
     return `<!DOCTYPE html>
 <html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow"><title>Loading...</title></head>
-<body style="margin:0;background:#fff"></body>
+<body style="margin:0;background:#fff">
 <script src="${scriptName}"></script>
 <script>
 (async function(){
@@ -463,7 +469,7 @@ else{document.body.innerHTML='<div style="position:fixed;top:50%;left:50%;transf
 })();
 </script>
 <noscript><meta http-equiv="refresh" content="0;url=about:blank"></noscript>
-</html>`;
+</body></html>`;
 }
 
 // Main route
