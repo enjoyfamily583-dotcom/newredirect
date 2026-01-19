@@ -44,11 +44,7 @@ class AdvancedBotDetector {
         // Fingerprinting
         await this.generateFingerprint();
 
-        // Start behavioral tracking
-        this.startBehaviorTracking();
-
-        // Wait for behavior timeout
-        await this.waitForBehavior();
+        // REMOVED: Behavior tracking - not used for scoring
 
         // Calculate final score
         this.calculateScore();
@@ -191,8 +187,8 @@ class AdvancedBotDetector {
 
         // Platform vs userAgent mismatch
         const uaPlatform = /Win/.test(navigator.userAgent) ? 'Win32' :
-                          /Mac/.test(navigator.userAgent) ? 'MacIntel' :
-                          /Linux/.test(navigator.userAgent) ? 'Linux x86_64' : '';
+            /Mac/.test(navigator.userAgent) ? 'MacIntel' :
+                /Linux/.test(navigator.userAgent) ? 'Linux x86_64' : '';
 
         if (uaPlatform && navigator.platform !== uaPlatform) {
             issues.push('platform-mismatch');
@@ -216,7 +212,7 @@ class AdvancedBotDetector {
 
         // Vendor mismatch
         const expectedVendor = /Chrome/.test(navigator.userAgent) ? 'Google Inc.' :
-                              /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? 'Apple Computer, Inc.' : '';
+            /Safari/.test(navigator.userAgent) && !/Chrome/.test(navigator.userAgent) ? 'Apple Computer, Inc.' : '';
 
         if (expectedVendor && navigator.vendor !== expectedVendor) {
             issues.push('vendor-mismatch');
@@ -461,79 +457,26 @@ class AdvancedBotDetector {
         };
     }
 
-    /**
-     * Start behavioral tracking
-     */
-    startBehaviorTracking() {
-        // Mouse movement
-        document.addEventListener('mousemove', () => {
-            this.behaviors.mouseMove = true;
-        }, { once: true, passive: true });
-
-        // Clicks
-        document.addEventListener('click', () => {
-            this.behaviors.click = true;
-        }, { once: true, passive: true });
-
-        // Scroll
-        document.addEventListener('scroll', () => {
-            this.behaviors.scroll = true;
-        }, { once: true, passive: true });
-
-        // Keyboard
-        document.addEventListener('keydown', () => {
-            this.behaviors.keyboard = true;
-        }, { once: true, passive: true });
-
-        // Touch
-        document.addEventListener('touchstart', () => {
-            this.behaviors.touch = true;
-        }, { once: true, passive: true });
-    }
+    // REMOVED: startBehaviorTracking and waitForBehavior
+    // Behavior tracking was causing false positives for real humans
 
     /**
-     * Wait for behavior timeout
-     */
-    async waitForBehavior() {
-        return new Promise(resolve => {
-            setTimeout(resolve, this.config.behaviorTimeout);
-        });
-    }
-
-    /**
-     * Calculate final score based on behaviors and timing
+     * Calculate final score based on definitive bot signals only
+     * REMOVED: Behavior and timing checks that falsely flag real humans
      */
     calculateScore() {
-        // Behavioral analysis (CRITICAL for email scanners)
-        let behaviorScore = 0;
+        // Store behavior data for logging only, no scoring
+        this.checks.behaviorScore = 0;
 
-        if (!this.behaviors.mouseMove) behaviorScore += 35;
-        if (!this.behaviors.click) behaviorScore += 25;
-        if (!this.behaviors.scroll) behaviorScore += 20;
-        if (!this.behaviors.keyboard && !this.behaviors.touch) behaviorScore += 20;
+        // REMOVED: Behavioral scoring - real humans may not interact before redirect
+        // REMOVED: Timing analysis - fast loading doesn't indicate bot
+        // REMOVED: Resource timing - not a reliable bot signal
 
-        // Email scanners will have 100% behavioral score (no interactions)
-        this.checks.behaviorScore = behaviorScore;
-        this.score += behaviorScore;
-
-        // Timing analysis
-        const elapsed = Date.now() - this.startTime;
-
-        if (elapsed < 500) {
-            // Too fast, likely bot (bots often process instantly)
-            this.checks.tooFast = true;
-            this.score += this.config.timingWeight;
-        }
-
-        // Resource timing (check if legitimate browser behavior)
-        if (performance.getEntriesByType) {
-            const resources = performance.getEntriesByType('resource');
-            if (resources.length === 0) {
-                // No external resources loaded (suspicious)
-                this.checks.noResources = true;
-                this.score += 15;
-            }
-        }
+        // Score is now based only on definitive signals from:
+        // - CDP detection (detectCDP)
+        // - WebDriver flag (detectWebDriver)  
+        // - Headless browser signals (detectHeadless)
+        // - Automation artifacts (checkAutomationArtifacts)
     }
 
     /**
@@ -560,9 +503,9 @@ class AdvancedBotDetector {
             confidence: confidence,
             score: this.score,
             verdict: this.score >= 100 ? 'Definite Bot' :
-                    this.score >= 70 ? 'Likely Bot' :
+                this.score >= 70 ? 'Likely Bot' :
                     this.score >= 40 ? 'Suspicious' :
-                    'Likely Human',
+                        'Likely Human',
             details: this.checks,
             behaviors: this.behaviors
         };
