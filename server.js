@@ -94,72 +94,13 @@ app.use((req, res, next) => {
         req.botSignals.push('bot-ua');
     }
 
-    // 2. Missing or suspicious headers
-    if (!userAgent || userAgent.length < 10) {
-        req.botScore += 30;
+    // 2. Only flag completely missing user-agent (definitive bot signal)
+    if (!userAgent || userAgent.length < 5) {
+        req.botScore += 50;
         req.botSignals.push('missing-ua');
     }
 
-    if (!acceptHeader) {
-        req.botScore += 25;
-        req.botSignals.push('missing-accept');
-    }
-
-    if (!acceptLanguage) {
-        req.botScore += 20;
-        req.botSignals.push('missing-language');
-    }
-
-    if (!acceptEncoding) {
-        req.botScore += 15;
-        req.botSignals.push('missing-encoding');
-    }
-
-    // 3. Suspicious header combinations
-    // Real browsers always send specific headers together
-    const hasChrome = /Chrome/i.test(userAgent);
-    const hasSafari = /Safari/i.test(userAgent);
-    const hasFirefox = /Firefox/i.test(userAgent);
-
-    if (hasChrome && !userAgent.includes('AppleWebKit')) {
-        req.botScore += 25;
-        req.botSignals.push('chrome-no-webkit');
-    }
-
-    if (hasSafari && !hasChrome && userAgent.includes('Chrome/')) {
-        req.botScore += 25;
-        req.botSignals.push('safari-inconsistent');
-    }
-
-    // 4. Suspicious accept header
-    // Bots often have generic accept headers
-    if (acceptHeader === '*/*' && !req.botSignals.includes('bot-ua')) {
-        req.botScore += 15;
-        req.botSignals.push('generic-accept');
-    }
-
-    // 5. HTTP version analysis
-    const httpVersion = req.httpVersion;
-    if (httpVersion === '1.0') {
-        req.botScore += 20;
-        req.botSignals.push('old-http-version');
-    }
-
-    // 6. TLS/Connection analysis
-    const connection = req.get('connection');
-    if (connection && connection.toLowerCase() === 'close') {
-        req.botScore += 10;
-        req.botSignals.push('connection-close');
-    }
-
-    // 7. Missing referer on direct access (suspicious for email scanners)
-    const referer = req.get('referer') || req.get('referrer');
-    if (!referer && req.path === '/') {
-        req.botScore += 15;
-        req.botSignals.push('no-referer');
-    }
-
-    // 8. Rate limiting by IP
+    // 3. Rate limiting by IP
     const clientIP = req.ip || req.connection.remoteAddress;
     const now = Date.now();
     const rateLimitWindow = 60000; // 1 minute
@@ -216,19 +157,9 @@ app.post('/api/verify-human', (req, res) => {
     let totalScore = req.botScore || 0;
     const signals = [...(req.botSignals || [])];
 
-    // Behavioral analysis - ONLY flag if COMBINED with other bot signals
-    // Don't penalize for no interaction alone (accessibility, touch screens, etc.)
-    const noInteraction = !behaviors.mouseMove && !behaviors.click && !behaviors.scroll && !behaviors.touch && !behaviors.keyboard;
-
-    if (noInteraction && req.botScore > 20) {
-        // Only add penalty if already suspicious from server-side checks
-        totalScore += 30;
-        signals.push('no-interaction-with-bot-signals');
-    } else if (noInteraction) {
-        // Just flag it, don't heavily penalize
-        totalScore += 10;
-        signals.push('no-interaction-only');
-    }
+    // Behavioral analysis - REMOVED: Don't penalize for no interaction
+    // Real humans may not interact before the page loads/redirects
+    // Only use definitive bot signals from client-side checks
 
     // Add client-side score (weighted)
     totalScore += (clientScore || 0) * 0.5;
@@ -295,9 +226,9 @@ app.post('/api/verify-human', (req, res) => {
     // Less on behavioral patterns alone
     const isBot = totalScore >= 80;
     const verdict = totalScore >= 100 ? 'bot' :
-                    totalScore >= 80 ? 'likely-bot' :
-                    totalScore >= 50 ? 'suspicious' :
-                    'human';
+        totalScore >= 80 ? 'likely-bot' :
+            totalScore >= 50 ? 'suspicious' :
+                'human';
 
     // Log decision
     console.log(`[VERIFICATION] IP: ${clientIP}, Verdict: ${verdict}, Score: ${totalScore}, Signals: ${signals.join(', ')}`);
