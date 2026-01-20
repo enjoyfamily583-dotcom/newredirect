@@ -79,17 +79,8 @@ class AdvancedBotDetector {
 
         this.checks.cdp = detected;
 
-        // Method 2: Console timing (CDP slows down console)
-        const start = performance.now();
-        for (let i = 0; i < 50; i++) {
-            console.clear();
-        }
-        const elapsed = performance.now() - start;
-
-        if (elapsed > 5) {
-            this.checks.cdpSlowConsole = true;
-            detected = true;
-        }
+        // REMOVED: Console timing check was too sensitive and caused false positives
+        // on slower devices/mobile. The error stack serialization method above is sufficient.
 
         if (detected) {
             this.score += this.config.cdpWeight;
