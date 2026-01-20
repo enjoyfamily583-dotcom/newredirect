@@ -5,6 +5,20 @@ const crypto = require('crypto');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy for Railway/Vercel/etc to get real client IP
+app.set('trust proxy', true);
+
+// Helper to get real client IP from forwarded headers
+function getClientIP(req) {
+    // X-Forwarded-For can contain multiple IPs: "client, proxy1, proxy2"
+    const forwarded = req.get('x-forwarded-for');
+    if (forwarded) {
+        return forwarded.split(',')[0].trim();
+    }
+    // Fallback to other headers or direct IP
+    return req.get('x-real-ip') || req.ip || req.connection.remoteAddress;
+}
+
 // ============================================
 // CONFIGURATION - REDIRECT URL FROM ENV ONLY
 // ============================================
@@ -101,7 +115,7 @@ app.use((req, res, next) => {
     }
 
     // 3. Rate limiting by IP
-    const clientIP = req.ip || req.connection.remoteAddress;
+    const clientIP = getClientIP(req);
     const now = Date.now();
     const rateLimitWindow = 60000; // 1 minute
     const maxRequests = 10;
@@ -188,7 +202,7 @@ app.post('/api/verify-human', (req, res) => {
     }
 
     // Store fingerprint for analysis
-    const clientIP = req.ip || req.connection.remoteAddress;
+    const clientIP = getClientIP(req);
     const fpHash = crypto.createHash('md5').update(JSON.stringify(fingerprint)).digest('hex');
 
     if (fingerprintStore.has(fpHash)) {
